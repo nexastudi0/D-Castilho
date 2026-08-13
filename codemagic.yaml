@@ -1,0 +1,38 @@
+workflows:
+  ios-capacitor:
+    name: D-Castilho iOS
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install
+      - name: Create and sync iOS project
+        script: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+          npx cap sync ios
+      - name: Install CocoaPods dependencies
+        script: |
+          if [ -f "ios/App/Podfile" ]; then
+            cd ios/App
+            pod install
+          fi
+      - name: Build iOS Simulator app
+        script: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+    artifacts:
+      - ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+      - ios/App/build/Logs/**/*.xcactivitylog

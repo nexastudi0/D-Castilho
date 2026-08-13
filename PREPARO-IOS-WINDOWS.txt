@@ -1,18 +1,13 @@
-PROJETO PREPARADO PARA CAPACITOR (ANDROID + IOS)
+D-CASTILHO - PREPARO iOS NO WINDOWS
 
-No Windows:
-1. Instale Node.js LTS.
-2. Abra o terminal nesta pasta.
-3. Execute: npm install
-4. Para Android: npx cap add android
-5. Sincronize: npx cap sync
-
-Para iOS:
-- O Xcode não roda no Windows.
-- A pasta iOS deve ser gerada/compilada em macOS (Mac físico ou serviço de CI macOS, como Codemagic).
-- Depois de instalar dependências em macOS: npx cap add ios && npx cap sync ios
+1. Suba TODO o conteúdo desta pasta para a raiz do repositório GitHub D-Castilho.
+2. Confirme que codemagic.yaml aparece na raiz do repositório (ao lado de package.json).
+3. No Codemagic, branch main, clique em "Check for configuration files".
+4. O workflow "D-Castilho iOS" deverá aparecer.
+5. Inicie o primeiro build. Ele gera uma compilação de SIMULADOR sem assinatura Apple, usada para validar que o projeto iOS compila corretamente.
+6. Depois do primeiro build aprovado, configure Apple Developer/App Store Connect no Codemagic para gerar um .ipa assinado e enviar ao TestFlight/App Store.
 
 IMPORTANTE:
-Os arquivos web usados pelo aplicativo estão na pasta www.
-Ao alterar index.html, app.js, styles.css, manifest.json ou service-worker.js na raiz,
-copie/atualize também a versão correspondente em www antes de sincronizar.
+- O app usa o conteúdo da pasta www.
+- O banco Supabase existente foi mantido.
+- Não publique chaves secretas/service_role no JavaScript do app. Chave publishable/anon é a apropriada para cliente, com RLS configurado no Supabase.
