@@ -1,0 +1,15 @@
+{
+  "name": "Barbearia D' Castilho - Combos",
+  "short_name": "D' Castilho",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d0d0f",
+  "theme_color": "#101010",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+PROJETO PREPARADO PARA CAPACITOR (ANDROID + IOS)
+
+No Windows:
+1. Instale Node.js LTS.
+2. Abra o terminal nesta pasta.
+3. Execute: npm install
+4. Para Android: npx cap add android
+5. Sincronize: npx cap sync
+
+Para iOS:
+- O Xcode não roda no Windows.
+- A pasta iOS deve ser gerada/compilada em macOS (Mac físico ou serviço de CI macOS, como Codemagic).
+- Depois de instalar dependências em macOS: npx cap add ios && npx cap sync ios
+
+IMPORTANTE:
+Os arquivos web usados pelo aplicativo estão na pasta www.
+Ao alterar index.html, app.js, styles.css, manifest.json ou service-worker.js na raiz,
+copie/atualize também a versão correspondente em www antes de sincronizar.

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101010" />
+  <title>Barbearia D' Castilho — Combos & Comissões</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="loginView" class="login-view">
+    <div class="login-card">
+      <img src="assets/logo.png" alt="Barbearia D' Castilho" class="login-logo" />
+      <h1>Gestão de Combos</h1>
+      <p>Controle de atendimentos, consumo de combos e comissões.</p>
+
+      <form id="loginForm">
+        <label>
+          Usuário
+          <input id="loginUser" autocomplete="username" placeholder="admin ou barbeiro" required />
+        </label>
+        <label>
+          Senha
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" required />
+        </label>
+        <button type="submit" class="btn primary full">Entrar</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/logo.png" alt="Logo" />
+        <div>
+          <strong>D' Castilho</strong>
+          <span id="roleLabel"></span>
+        </div>
+      </div>
+
+      <nav id="navAdmin" class="nav hidden">
+        <button data-page="dashboard" class="nav-btn active">Dashboard</button>
+        <button data-page="clients" class="nav-btn">Clientes</button>
+        <button data-page="combos" class="nav-btn">Combos</button>
+        <button data-page="barbers" class="nav-btn">Funcionários</button>
+        <button data-page="attendance" class="nav-btn">Lançar Corte</button>
+        <button data-page="sales" class="nav-btn">Lançar Combo</button>
+        <button data-page="commissions" class="nav-btn">Comissões</button>
+        <button data-page="history" class="nav-btn">Históricos</button>
+      </nav>
+
+      <nav id="navDeveloper" class="nav hidden">
+        <button data-page="dashboard" class="nav-btn active">Dashboard</button>
+        <button data-page="clients" class="nav-btn">Clientes</button>
+        <button data-page="combos" class="nav-btn">Combos</button>
+        <button data-page="barbers" class="nav-btn">Funcionários</button>
+        <button data-page="attendance" class="nav-btn">Lançar Corte</button>
+        <button data-page="sales" class="nav-btn">Lançar Combo</button>
+        <button data-page="commissions" class="nav-btn">Comissões</button>
+        <button data-page="history" class="nav-btn">Históricos</button>
+        <button data-page="access" class="nav-btn">Acessos</button>
+      </nav>
+
+      <button id="logoutBtn" class="btn ghost logout">Sair</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <small>Painel</small>
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="user-chip">
+          <span id="currentUserName"></span>
+          <span id="currentUserRole"></span>
+        </div>
+      </header>
+
+      <section id="page-dashboard" class="page"></section>
+      <section id="page-clients" class="page hidden"></section>
+      <section id="page-combos" class="page hidden"></section>
+      <section id="page-barbers" class="page hidden"></section>
+      <section id="page-sales" class="page hidden"></section>
+      <section id="page-commissions" class="page hidden"></section>
+      <section id="page-history" class="page hidden"></section>
+      <section id="page-attendance" class="page hidden"></section>
+      <section id="page-access" class="page hidden"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
