@@ -1,10 +1,6 @@
 const COMMISSION_RATE = 0.30;
 
 const defaultData = {
-  users: [
-    {id: 1, name: "Desenvolvedor", username: "desenvolvedor", password: "dev123", role: "developer", active: true},
-    {id: 2, name: "Alisson", username: "alisson", password: "admin123", role: "admin", active: true}
-  ],
   employees: [
     {id: 1, name: "Funcionário Exemplo", active: true}
   ],
@@ -17,16 +13,20 @@ const defaultData = {
 
 let state = JSON.parse(JSON.stringify(defaultData));
 let session = null;
+let authSession = null;
 
 // Supabase: banco central compartilhado entre celular e computador.
 const SUPABASE_URL = "https://mftdqzzrelgkqslbcdri.supabase.co";
 const SUPABASE_KEY = "sb_publishable_JvLrbf0KOqLGcsKuvhPe4Q_ONrB5Ukw";
-const SUPABASE_HEADERS = {
-  "apikey": SUPABASE_KEY,
-  "Authorization": `Bearer ${SUPABASE_KEY}`,
-  "Content-Type": "application/json"
-};
 let syncQueue = Promise.resolve();
+
+function supabaseHeaders(useUserToken=true){
+  return {
+    "apikey": SUPABASE_KEY,
+    "Authorization": `Bearer ${useUserToken && authSession?.access_token ? authSession.access_token : SUPABASE_KEY}`,
+    "Content-Type": "application/json"
+  };
+}
 
 function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
 function endOfMonthISO(){ const d=new Date(); return new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10); }
@@ -34,7 +34,6 @@ function money(v){ return Number(v||0).toLocaleString("pt-BR",{style:"currency",
 function uid(arr){ return arr.length?Math.max(...arr.map(x=>Number(x.id)))+1:1; }
 
 const tableConfig = {
-  users: { table:"users", toDb:x=>({id:x.id,name:x.name,username:x.username,password:x.password,role:x.role,active:x.active}), fromDb:x=>x },
   employees: { table:"employees", toDb:x=>({id:x.id,name:x.name,active:x.active}), fromDb:x=>x },
   clients: { table:"clients", toDb:x=>({id:x.id,name:x.name,phone:x.phone||null,active:x.active}), fromDb:x=>x },
   combos: { table:"combos", toDb:x=>({id:x.id,name:x.name,price:x.price,type:x.type,limit:x.limit??null,unlimited_base:x.unlimitedBase||0,active:x.active}), fromDb:x=>({id:x.id,name:x.name,price:Number(x.price),type:x.type,limit:x.limit,unlimitedBase:Number(x.unlimited_base||0),active:x.active}) },
@@ -43,15 +42,66 @@ const tableConfig = {
   payments: { table:"payments", toDb:x=>({id:x.id,employee_id:x.employeeId,amount:x.amount,date:x.date}), fromDb:x=>({id:x.id,employeeId:x.employee_id,amount:Number(x.amount),date:x.date}) }
 };
 
-async function api(path, options={}){
-  const response=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...options,headers:{...SUPABASE_HEADERS,...(options.headers||{})}});
+async function api(path, options={}, allowAnonFallback=true){
+  const request = async(useUserToken)=>fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+    ...options,
+    headers:{...supabaseHeaders(useUserToken),...(options.headers||{})}
+  });
+  let response=await request(true);
+  // Durante a migração, mantém compatibilidade até as policies finais serem aplicadas.
+  if(allowAnonFallback && authSession?.access_token && (response.status===401 || response.status===403)) response=await request(false);
   if(!response.ok){ throw new Error(`${response.status}: ${await response.text()}`); }
   if(response.status===204)return null;
   const text=await response.text(); return text?JSON.parse(text):null;
 }
 
+async function authRequest(path, options={}){
+  const response=await fetch(`${SUPABASE_URL}/auth/v1/${path}`,{
+    ...options,
+    headers:{"apikey":SUPABASE_KEY,"Content-Type":"application/json",...(authSession?.access_token?{"Authorization":`Bearer ${authSession.access_token}`}:{}) ,...(options.headers||{})}
+  });
+  const text=await response.text();
+  const data=text?JSON.parse(text):null;
+  if(!response.ok) throw new Error(data?.msg||data?.message||data?.error_description||"Falha na autenticação.");
+  return data;
+}
+
+async function signInWithEmail(email,password){
+  const data=await authRequest('token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});
+  authSession=data;
+  localStorage.setItem('dc_castilho_auth_session',JSON.stringify(authSession));
+  return data;
+}
+
+async function refreshAuthSession(){
+  const saved=localStorage.getItem('dc_castilho_auth_session');
+  if(!saved)return false;
+  try{
+    const old=JSON.parse(saved);
+    if(!old?.refresh_token)return false;
+    const data=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{
+      method:'POST',headers:{"apikey":SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:old.refresh_token})
+    });
+    if(!data.ok)throw new Error('Sessão expirada');
+    authSession=await data.json();
+    localStorage.setItem('dc_castilho_auth_session',JSON.stringify(authSession));
+    return true;
+  }catch(err){
+    localStorage.removeItem('dc_castilho_auth_session'); authSession=null; return false;
+  }
+}
+
+async function loadProfile(){
+  if(!authSession?.user?.id)throw new Error('Usuário não autenticado.');
+  const rows=await api(`profiles?id=eq.${encodeURIComponent(authSession.user.id)}&select=id,name,role,active`,{},false);
+  const profile=rows?.[0];
+  if(!profile || !profile.active)throw new Error('Este acesso não está autorizado.');
+  session={id:profile.id,name:profile.name,role:profile.role,active:profile.active,email:authSession.user.email};
+  return session;
+}
+
 async function loadData(){
-  const fresh={users:[],employees:[],clients:[],combos:[],subscriptions:[],services:[],payments:[]};
+  const fresh={employees:[],clients:[],combos:[],subscriptions:[],services:[],payments:[]};
   for(const [key,cfg] of Object.entries(tableConfig)){
     const rows=await api(`${cfg.table}?select=*&order=id.asc`);
     fresh[key]=(rows||[]).map(cfg.fromDb);
@@ -73,13 +123,11 @@ async function syncTable(key){
 }
 
 async function syncAll(){
-  // Pais antes dos filhos para respeitar as chaves estrangeiras.
-  for(const key of ["users","employees","clients","combos","subscriptions","services","payments"]) await syncTable(key);
+  for(const key of ["employees","clients","combos","subscriptions","services","payments"]) await syncTable(key);
   localStorage.setItem("dc_castilho_data_v12_cache",JSON.stringify(state));
 }
 
 function saveData(){
-  // Mantém as ações da interface rápidas e serializa as gravações online.
   syncQueue=syncQueue.then(syncAll).catch(err=>{ console.error("Erro Supabase:",err); toast("Erro ao sincronizar com o servidor."); });
   return syncQueue;
 }
@@ -88,16 +136,10 @@ async function initializeOnlineData(){
   const submit=document.querySelector('#loginForm button[type="submit"]');
   if(submit){submit.disabled=true;submit.textContent="Conectando...";}
   try{
-    await loadData();
-    if(!state.users.length) throw new Error("Nenhum usuário encontrado no Supabase.");
-    if(submit){submit.disabled=false;submit.textContent="Entrar";}
-  }catch(err){
-    console.error(err);
-    const cached=localStorage.getItem("dc_castilho_data_v12_cache");
-    if(cached){ try{state=JSON.parse(cached);}catch(e){} }
-    if(submit){submit.disabled=false;submit.textContent="Entrar";}
-    toast("Sem conexão com o banco. Verifique a internet.");
-  }
+    const restored=await refreshAuthSession();
+    if(restored){ await loadProfile(); await loadData(); openApp(); }
+  }catch(err){ console.error(err); session=null; authSession=null; localStorage.removeItem('dc_castilho_auth_session'); }
+  finally{ if(submit){submit.disabled=false;submit.textContent="Entrar";} }
 }
 function toast(msg){ const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),2200); }
 function fmtDate(v){ if(!v)return "-"; return new Date(v+"T12:00:00").toLocaleDateString("pt-BR"); }
@@ -113,12 +155,27 @@ function serviceCanBeRegistered(sub){ const combo=comboById(sub.comboId); if(!co
 function pruneOldHistory(){ const limit=new Date(Date.now()-(30*24*60*60*1000)); const before=state.services.length; state.services=state.services.filter(s=>new Date(s.date)>=limit); if(before!==state.services.length)saveData(); }
 function isDeveloper(){ return session?.role==="developer"; }
 
-document.getElementById("loginForm").addEventListener("submit",e=>{
-  e.preventDefault(); const u=document.getElementById("loginUser").value.trim(); const p=document.getElementById("loginPass").value;
-  const found=state.users.find(x=>x.username===u&&x.password===p&&x.active);
-  if(!found)return toast("Usuário ou senha inválidos."); session=found; openApp();
+document.getElementById("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const email=document.getElementById("loginUser").value.trim().toLowerCase();
+  const password=document.getElementById("loginPass").value;
+  const btn=e.currentTarget.querySelector('button[type="submit"]');
+  try{
+    btn.disabled=true; btn.textContent="Entrando...";
+    await signInWithEmail(email,password);
+    await loadProfile();
+    await loadData();
+    openApp();
+  }catch(err){
+    console.error(err); session=null; authSession=null; localStorage.removeItem('dc_castilho_auth_session');
+    toast(err.message.includes('Invalid login')?"E-mail ou senha inválidos.":err.message);
+  }finally{btn.disabled=false;btn.textContent="Entrar";}
 });
-document.getElementById("logoutBtn").onclick=()=>{ session=null; document.getElementById("appView").classList.add("hidden"); document.getElementById("loginView").classList.remove("hidden"); };
+document.getElementById("logoutBtn").onclick=async()=>{
+  try{ if(authSession?.access_token) await authRequest('logout',{method:'POST'}); }catch(e){}
+  session=null; authSession=null; localStorage.removeItem('dc_castilho_auth_session');
+  document.getElementById("appView").classList.add("hidden"); document.getElementById("loginView").classList.remove("hidden");
+};
 
 function openApp(){
   pruneOldHistory(); document.getElementById("loginView").classList.add("hidden"); document.getElementById("appView").classList.remove("hidden");
@@ -206,10 +263,40 @@ window.setHistoryEmployee=id=>{const el=document.getElementById("page-history");
 window.cancelService=id=>{const s=state.services.find(x=>x.id===id);if(!s||s.cancelled)return;s.cancelled=true;const sub=subscriptionById(s.subscriptionId);if(sub)sub.used=Math.max(0,sub.used-1);saveData();toast("Atendimento cancelado.");renderHistory();};
 
 function renderAccess(){
-  if(!isDeveloper())return; const el=document.getElementById("page-access"); const admin=state.users.find(u=>u.role==="admin"); const dev=state.users.find(u=>u.role==="developer");
-  el.innerHTML=`<div class="grid two"><div class="card"><div class="section-title"><h3>Acesso do administrador</h3></div><form id="adminAccessForm" class="form-grid"><label>Nome<input id="adminName" value="${admin?.name||""}" required></label><label>Usuário<input id="adminUser" value="${admin?.username||""}" required></label><label>Nova senha<input id="adminPass" type="password" placeholder="Deixe em branco para manter"></label><div class="full"><button class="btn primary">Salvar administrador</button></div></form></div><div class="card"><div class="section-title"><h3>Meu acesso de desenvolvedor</h3></div><form id="devAccessForm" class="form-grid"><label>Nome<input id="devName" value="${dev?.name||""}" required></label><label>Usuário<input id="devUser" value="${dev?.username||""}" required></label><label>Nova senha<input id="devPass" type="password" placeholder="Deixe em branco para manter"></label><div class="full"><button class="btn primary">Salvar desenvolvedor</button></div></form></div></div>`;
-  document.getElementById("adminAccessForm").onsubmit=e=>{e.preventDefault();admin.name=document.getElementById("adminName").value.trim();admin.username=document.getElementById("adminUser").value.trim();const p=document.getElementById("adminPass").value;if(p)admin.password=p;saveData();toast("Acesso do administrador atualizado.");renderAccess();};
-  document.getElementById("devAccessForm").onsubmit=e=>{e.preventDefault();dev.name=document.getElementById("devName").value.trim();dev.username=document.getElementById("devUser").value.trim();const p=document.getElementById("devPass").value;if(p)dev.password=p;saveData();session=dev;toast("Acesso do desenvolvedor atualizado.");renderAccess();};
+  if(!isDeveloper())return;
+  const el=document.getElementById("page-access");
+  el.innerHTML=`
+    <div class="grid two">
+      <div class="card">
+        <div class="section-title"><h3>Meu acesso de desenvolvedor</h3></div>
+        <form id="devAccessForm" class="form-grid">
+          <label>Nome<input id="devName" value="${session?.name||""}" required></label>
+          <label>E-mail<input value="${session?.email||""}" disabled></label>
+          <label>Nova senha<input id="devPass" type="password" minlength="6" placeholder="Deixe em branco para manter"></label>
+          <div class="full"><button class="btn primary">Salvar meu acesso</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3>Acesso do administrador</h3></div>
+        <p><b>Conta:</b> halison@gmail.com</p>
+        <p class="muted">O administrador usa Supabase Auth. Por segurança, a senha de outra conta não fica disponível no código do site. Alterações de e-mail/senha do administrador devem ser feitas no painel Authentication → Users do Supabase.</p>
+      </div>
+    </div>`;
+  document.getElementById("devAccessForm").onsubmit=async e=>{
+    e.preventDefault();
+    const name=document.getElementById("devName").value.trim();
+    const password=document.getElementById("devPass").value;
+    try{
+      await api(`profiles?id=eq.${encodeURIComponent(session.id)}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({name})},false);
+      if(password){
+        await authRequest('user',{method:'PUT',body:JSON.stringify({password})});
+      }
+      session.name=name;
+      document.getElementById("currentUserName").textContent=name;
+      toast(password?"Nome e senha atualizados.":"Nome atualizado.");
+      renderAccess();
+    }catch(err){ console.error(err); toast("Não foi possível atualizar o acesso."); }
+  };
 }
 
 initializeOnlineData();

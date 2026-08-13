@@ -1,31 +1,15 @@
-BARBEARIA D' CASTILHO — V12
+GESTÃO DE BARBEARIA — SUPABASE AUTH
 
-ATUALIZAÇÃO COMPLETA DE ACESSOS
+Esta versão usa Supabase Authentication para login por e-mail e senha.
 
-Agora existem apenas 2 logins:
-1) Desenvolvedor
-   usuário: desenvolvedor
-   senha: dev123
+Contas configuradas no projeto:
+- Desenvolvedor: nexa@gmail.com
+- Administrador: halison@gmail.com
 
-2) Administrador (Alisson)
-   usuário: alisson
-   senha: admin123
+Os dados de clientes, combos, funcionários, atendimentos, comissões e pagamentos ficam no Supabase e são compartilhados entre computador e celular.
 
-- Funcionários NÃO possuem login.
-- Funcionários são cadastrados apenas pelo nome para controle de cortes e comissões.
-- O administrador/desenvolvedor lança manualmente cada corte e escolhe qual funcionário realizou o atendimento.
-- Comissão automática continua em 30%.
-- Combo ilimitado permite somente 1 lançamento por cliente por dia.
-- Histórico é mantido por 30 dias.
-- Históricos: Todas + um botão por funcionário cadastrado.
-- Desenvolvedor possui aba Acessos para editar credenciais dele e do administrador.
-- Administrador não vê a aba Acessos.
-
-Esta versão ainda usa localStorage para teste. Depois deve ser conectada ao Supabase para sincronização online e segurança real.
-
-
-ATUALIZAÇÃO V13
-- Todos os combos pagam 30% sobre R$ 50,00 por corte.
-- Comissão fixa por corte: R$ 15,00.
-- Vale para combos fixos e ilimitados.
-- O valor do combo não altera a comissão por corte.
+IMPORTANTE:
+1. Execute o SQL de policies authenticated fornecido junto desta versão antes de fechar/remover as policies anon.
+2. Nunca coloque service_role/secret key dentro do app.
+3. A Publishable Key pode permanecer no cliente; a segurança real depende de RLS e Auth.
+4. Alteração de senha de outra conta deve ser feita no painel Supabase Authentication ou por backend seguro.
