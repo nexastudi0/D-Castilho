@@ -1,0 +1,14 @@
+D' CASTILHO - INSTALAR NO IPHONE SEM APP STORE
+
+1. Publique estes arquivos no GitHub Pages normalmente.
+2. No iPhone, abra o endereço do sistema usando o Safari.
+3. Toque no botão Compartilhar.
+4. Escolha Adicionar à Tela de Início.
+5. Confirme o nome D' Castilho e toque em Adicionar.
+6. Abra pelo novo ícone na Tela de Início.
+
+IMPORTANTE:
+- Use HTTPS (GitHub Pages já fornece).
+- O Supabase continua sendo o banco online; esta preparação não altera suas credenciais ou regras.
+- Atualizações futuras do site podem ser publicadas no GitHub.
+- Se uma atualização ficar em cache, feche e abra novamente o app; o service worker foi versionado para esta versão.
