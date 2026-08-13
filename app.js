@@ -301,4 +301,42 @@ function renderAccess(){
 
 initializeOnlineData();
 
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));}
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("service-worker.js");
+      let refreshing = false;
+
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      const activateUpdate = worker => {
+        if (worker) worker.postMessage({ type: "SKIP_WAITING" });
+      };
+
+      if (registration.waiting) activateUpdate(registration.waiting);
+
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            activateUpdate(worker);
+          }
+        });
+      });
+
+      // Verifica atualizações ao abrir e periodicamente enquanto o app estiver aberto.
+      registration.update().catch(() => {});
+      setInterval(() => registration.update().catch(() => {}), 60 * 1000);
+
+      // Ao voltar para o app no iPhone, confere novamente.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") registration.update().catch(() => {});
+      });
+    } catch (_) {}
+  });
+}

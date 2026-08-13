@@ -1,0 +1,14 @@
+D' CASTILHO - ATUALIZACAO AUTOMATICA DO PWA
+
+Esta versao verifica novas versoes do Service Worker:
+- quando o app abre;
+- a cada 60 segundos enquanto estiver aberto;
+- quando o usuario volta para o app.
+
+Quando um novo Service Worker e instalado, ele assume o controle e recarrega a pagina automaticamente.
+O cache antigo e apagado na ativacao.
+
+IMPORTANTE AO PUBLICAR UMA NOVA VERSAO:
+Altere o valor CACHE no inicio de service-worker.js, por exemplo:
+dcastilho-v5-auto-update -> dcastilho-v6-auto-update
+Isso garante a renovacao dos arquivos em cache.
